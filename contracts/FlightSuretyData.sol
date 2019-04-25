@@ -9,8 +9,13 @@ contract FlightSuretyData {
     /*                                       DATA VARIABLES                                     */
     /********************************************************************************************/
 
+    struct Airline {
+        bool isRegistered;
+    }
+
     address private contractOwner;                                      // Account used to deploy contract
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
+    mapping(address => Airline) airlines;
 
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -23,10 +28,12 @@ contract FlightSuretyData {
     */
     constructor
                                 (
+                                    address airline
                                 )
                                 public
     {
         contractOwner = msg.sender;
+        airlines[airline] = Airline(true);
     }
 
     /********************************************************************************************/
@@ -100,10 +107,12 @@ contract FlightSuretyData {
     */
     function registerAirline
                             (
+                                bool isRegistered
                             )
                             external
                             // pure
     {
+
     }
 
 

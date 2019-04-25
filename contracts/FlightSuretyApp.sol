@@ -52,7 +52,7 @@ contract FlightSuretyApp {
     modifier requireIsOperational()
     {
          // Modify to call data contract's status
-        require(true, "Contract is currently not operational");
+        require(isOperational(), "Contract is currently not operational");
         _;  // All modifiers require an "_" which indicates where the function body will be added
     }
 
@@ -75,10 +75,12 @@ contract FlightSuretyApp {
     */
     constructor
                                 (
+                                    address dataContract
                                 )
                                 public
     {
         contractOwner = msg.sender;
+        flightSuretyData = FlightSuretyData(dataContract);
     }
 
     /********************************************************************************************/
@@ -87,10 +89,10 @@ contract FlightSuretyApp {
 
     function isOperational()
                             public
-                            pure
+                            // pure
                             returns(bool)
     {
-        return true;  // Modify to call data contract's status
+        return flightSuretyData.isOperational();  // Modify to call data contract's status
     }
 
     /********************************************************************************************/
@@ -104,9 +106,10 @@ contract FlightSuretyApp {
     */
     function registerAirline
                             (
+                                bool isRegistered
                             )
                             external
-                            pure
+                            // pure
                             returns(bool success, uint256 votes)
     {
         return (success, 0);
@@ -121,7 +124,7 @@ contract FlightSuretyApp {
                                 (
                                 )
                                 external
-                                pure
+                                // pure
     {
 
     }
@@ -138,7 +141,7 @@ contract FlightSuretyApp {
                                     uint8 statusCode
                                 )
                                 internal
-                                pure
+                                // pure
     {
     }
 
@@ -283,7 +286,7 @@ contract FlightSuretyApp {
                             string flight,
                             uint256 timestamp
                         )
-                        pure
+                        // pure
                         internal
                         returns(bytes32)
     {
@@ -340,7 +343,7 @@ contract FlightSuretyApp {
 
 
 contract FlightSuretyData {
-    function isOperational() public view ;
-    function registerAirline() external ;
-    function getFlightKey(address airline, string flight, uint256 timestamp) external ;
+    function isOperational() public view returns(bool);
+    function registerAirline() external;
+    function getFlightKey(address airline, string flight, uint256 timestamp) external;
 }
