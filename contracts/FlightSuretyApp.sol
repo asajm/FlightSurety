@@ -5,6 +5,7 @@ pragma solidity ^0.4.25;
 // More info: https://www.nccgroup.trust/us/about-us/newsroom-and-events/blog/2018/november/smart-contract-insecurity-bad-arithmetic/
 
 import "../node_modules/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import './FlightSuretyData.sol';
 
 /************************************************** */
 /* FlightSurety Smart Contract                      */
@@ -25,6 +26,7 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
     uint8 private constant LIMIT_DIRECT_REGISTER_AIRLINE = 4;
+    uint256 private constant LIMIT_INSURANCE_FUND = 2 ether;
 
     address private contractOwner;          // Account used to deploy contract
 
@@ -86,7 +88,17 @@ contract FlightSuretyApp {
     }
 
     modifier requireOneRegistrationAction(address airline) {
-        require(votes[airline].voters[msg.sender] == false, "Caller hs already voted for this airline!");
+        require(votes[airline].voters[msg.sender] == false, "Caller was already voted for this airline!");
+        _;
+    }
+
+    modifier requireFundedAirline(address airline) {
+        require(flightSuretyData.isFundedAirline(airline) == true, "The airline is not funded enough yet!");
+        _;
+    }
+
+     modifier requireEnoughFunding() {
+        require(msg.value >= LIMIT_INSURANCE_FUND, "The funding is not enough!");
         _;
     }
 
@@ -98,7 +110,7 @@ contract FlightSuretyApp {
     * @dev Contract constructor
     *
     */
-    constructor(address dataContract) public {
+    constructor(address dataContract) public payable{
         contractOwner = msg.sender;
         flightSuretyData = FlightSuretyData(dataContract);
     }
@@ -109,10 +121,6 @@ contract FlightSuretyApp {
 
     function isOperational() public returns(bool) {
         return flightSuretyData.isOperational();  // Modify to call data contract's status
-    }
-
-    function _isExistedAirline(address airline) private returns(bool) {
-        return flightSuretyData.isExistedAirline(airline);  // Modify to call data contract's status
     }
 
     function _isApprovedAirline(address airline) private returns(bool) {
@@ -145,19 +153,34 @@ contract FlightSuretyApp {
                                                 requireRegisteredAirline(msg.sender)
                                                 requireNotRegisteredAirline(airline)
                                                 requireOneRegistrationAction(airline)
+                                                requireFundedAirline(msg.sender)
                                                 returns(bool) {
         uint256 count = flightSuretyData.getAirlinesCounts();
-        bool success = false;
-        if (count < LIMIT_DIRECT_REGISTER_AIRLINE) { success = true; }
+        bool isRegistered = false;
+        if (count < LIMIT_DIRECT_REGISTER_AIRLINE) { isRegistered = true; }
         else {
             Vote vote = votes[airline];
             vote.count = vote.count.add(1);
             vote.voters[msg.sender] = true;
             votes[airline] = vote;
-            if (_isApprovedAirline(airline)) { success = true; }
+            if (_isApprovedAirline(airline)) { isRegistered = true; }
         }
-        flightSuretyData.registerAirline(airline, success);
-        return success;
+        flightSuretyData.registerAirline(airline, isRegistered);
+        return isRegistered;
+    }
+
+    function fundAirline()  public payable
+                            requireRegisteredAirline(msg.sender)
+                            requireEnoughFunding {
+        flightSuretyData.fundAirline(msg.sender, true);
+    }
+
+    function getContractBalance() public returns(uint256) {
+        return address(this).balance;
+    }
+
+    function getAirlineBalance(address airline) public returns(uint256) {
+        return address(airline).balance;
     }
 
    /**
@@ -326,11 +349,13 @@ contract FlightSuretyApp {
 }
 
 
-contract FlightSuretyData {
-    function isOperational() public view returns(bool);
-    function registerAirline(address airline, bool isRegistered) external;
-    function getFlightKey(address airline, string flight, uint256 timestamp) external;
-    function getAirlinesCounts() public view returns(uint256);
-    function isRegisteredAirline(address airline) public view returns(bool);
-    function isExistedAirline(address airline) public view returns(bool);
-}
+// contract FlightSuretyData {
+//     function isOperational() public view returns(bool);
+//     function registerAirline(address airline, bool isRegistered) external;
+//     function getFlightKey(address airline, string flight, uint256 timestamp) external;
+//     function getAirlinesCounts() public view returns(uint256);
+//     function isRegisteredAirline(address airline) public view returns(bool);
+//     function isExistedAirline(address airline) public view returns(bool);
+//     function fundAirline(address airline, bool isFunded) public payable returns(uint256);
+//     function isFundedAirline(address airline) public view returns(bool);
+// }

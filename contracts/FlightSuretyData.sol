@@ -12,6 +12,8 @@ contract FlightSuretyData {
     struct Airline {
         bool isExisted;
         bool isRegistered;
+        bool isFunded;
+        uint256 balance;
     }
 
     address private contractOwner;                                      // Account used to deploy contract
@@ -29,7 +31,7 @@ contract FlightSuretyData {
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor(address airline) public {
+    constructor(address airline) public payable{
         contractOwner = msg.sender;
         _addAirline(airline, true);
     }
@@ -59,8 +61,13 @@ contract FlightSuretyData {
         _;
     }
 
+    modifier requireRegisteredAirline(address airline) {
+        require(airlines[airline].isRegistered == true, "the airline is not registered yet!");
+        _;
+    }
+
     modifier requireNotRegisteredAirline(address airline) {
-        require(isRegisteredAirline(airline) == false, "the airline is already registered!");
+        require(airlines[airline].isRegistered == false, "the airline is already registered!");
         _;
     }
 
@@ -77,11 +84,17 @@ contract FlightSuretyData {
         return operational;
     }
 
+
+    function isAirline(address airline) public view returns(bool) {
+        return airlines[airline].isExisted;
+    }
+
     function isRegisteredAirline(address airline) public view returns(bool) {
         return airlines[airline].isRegistered;
     }
-    function isAirline(address airline) public view returns(bool) {
-        return airlines[airline].isExisted;
+
+    function isFundedAirline(address airline) public view returns(bool) {
+        return airlines[airline].isFunded;
     }
 
     /**
@@ -112,22 +125,20 @@ contract FlightSuretyData {
     *      Can only be called from FlightSuretyApp contract
     *
     */
-    function registerAirline(address airline, bool isRegistered) external requireNotRegisteredAirline(airline) {
+    function registerAirline(address airline, bool isRegistered) external requireIsOperational requireNotRegisteredAirline(airline) {
         _addAirline(airline, isRegistered);
     }
 
     function _addAirline(address airline, bool isRegistered) private {
         if (airlines[airline].isRegistered == false && isRegistered == true) { countRegisteredAirlines = countRegisteredAirlines.add(1); }
         if (airlines[airline].isExisted == false) { countAirlines = countAirlines.add(1); }
-        airlines[airline] = Airline(true, isRegistered);
+        airlines[airline] = Airline(true, isRegistered, false, 0);
     }
 
-    // function _dropAirline(address airline) private {
-    //     if (airlines[airline].isRegistered == true) { countRegisteredAirlines = countRegisteredAirlines.sub(1); }
-    //     countAirlines = countAirlines.sub(1);
-    //     delete airlines[airline];
-    // }
-
+    function fundAirline(address airline, bool isFunded) public payable requireRegisteredAirline(airline) {
+        airlines[airline].balance = airlines[airline].balance.add(msg.value);
+        airlines[airline].isFunded = isFunded;
+    }
 
    /**
     * @dev Buy insurance for a flight
@@ -156,8 +167,7 @@ contract FlightSuretyData {
     *      resulting in insurance payouts, the contract should be self-sustaining
     *
     */
-    function fund() public payable {
-    }
+    function fund() public payable {}
 
     function getFlightKey(address airline, string flight, uint256 timestamp) external returns(bytes32) {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
@@ -167,8 +177,6 @@ contract FlightSuretyData {
     * @dev Fallback function for funding smart contract.
     *
     */
-    function() external payable {
-        fund();
-    }
+    function() external payable { fund(); }
 }
 
