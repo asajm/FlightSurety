@@ -25,26 +25,18 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
-    uint8 private constant LIMIT_DIRECT_REGISTER_AIRLINE = 4;
-    uint256 private constant LIMIT_INSURANCE_FUND = 2 ether;
+    uint8 private constant LIMIT_DIRECT_AIRLINE_REGISTRATION = 4;
+    uint256 private constant FEE_AUTHORIZED_AIRLINE = 2 ether;
+    uint256 private constant FEE_PASSENGER_INCURANCE = 1 ether;
 
     address private contractOwner;          // Account used to deploy contract
 
-    struct Flight {
-        bool isRegistered;
-        uint8 statusCode;
-        uint256 updatedTimestamp;
-        address airline;
-    }
+
 
     struct Vote {
         uint256 count;
         mapping(address => bool) voters;
     }
-
-    mapping(bytes32 => Flight) private flights;
-
-    mapping(address => Flight) private airlines;
 
     mapping(address => Vote) private votes;
 
@@ -54,7 +46,7 @@ contract FlightSuretyApp {
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
     /********************************************************************************************/
-
+//
     // Modifiers help avoid duplication of code. They are typically used to validate something
     // before a function is allowed to be executed.
 
@@ -78,7 +70,7 @@ contract FlightSuretyApp {
     }
 
     modifier requireRegisteredAirline(address airline) {
-        require(flightSuretyData.isRegisteredAirline(airline), "Caller is not a registered airline");
+        require(flightSuretyData.isRegisteredAirline(airline) == true, "the airline is not a registered airline");
         _;
     }
 
@@ -97,15 +89,21 @@ contract FlightSuretyApp {
         _;
     }
 
-     modifier requireEnoughFunding() {
-        require(msg.value >= LIMIT_INSURANCE_FUND, "The funding is not enough!");
+     modifier requirePaidEnough() {
+        require(msg.value >= FEE_AUTHORIZED_AIRLINE, "The funding is not enough!");
         _;
     }
+
+    modifier requireMeetIncuranceFee() {
+        require(msg.value <= FEE_PASSENGER_INCURANCE, "The funding exceeds the limit (up to 1 ether)!");
+        _;
+    }
+//
 
     /********************************************************************************************/
     /*                                       CONSTRUCTOR                                        */
     /********************************************************************************************/
-
+//
     /**
     * @dev Contract constructor
     *
@@ -114,11 +112,12 @@ contract FlightSuretyApp {
         contractOwner = msg.sender;
         flightSuretyData = FlightSuretyData(dataContract);
     }
+//
 
     /********************************************************************************************/
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
-
+//
     function isOperational() public returns(bool) {
         return flightSuretyData.isOperational();  // Modify to call data contract's status
     }
@@ -139,25 +138,28 @@ contract FlightSuretyApp {
     function getAirlinesCount() public returns (uint256) {
         return flightSuretyData.getAirlinesCounts();
     }
+//
 
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
-
+//
 
    /**
     * @dev Add an airline to the registration queue
     *
     */
-    function registerAirline(address airline)   external
-                                                requireRegisteredAirline(msg.sender)
-                                                requireNotRegisteredAirline(airline)
-                                                requireOneRegistrationAction(airline)
-                                                requireFundedAirline(msg.sender)
-                                                returns(bool) {
+    function registerAirline(address airline)
+                            external
+                            requireIsOperational
+                            requireRegisteredAirline(msg.sender)
+                            requireNotRegisteredAirline(airline)
+                            requireOneRegistrationAction(airline)
+                            requireFundedAirline(msg.sender)
+                            returns(bool) {
         uint256 count = flightSuretyData.getAirlinesCounts();
         bool isRegistered = false;
-        if (count < LIMIT_DIRECT_REGISTER_AIRLINE) { isRegistered = true; }
+        if (count < LIMIT_DIRECT_AIRLINE_REGISTRATION) { isRegistered = true; }
         else {
             Vote vote = votes[airline];
             vote.count = vote.count.add(1);
@@ -169,26 +171,27 @@ contract FlightSuretyApp {
         return isRegistered;
     }
 
-    function fundAirline()  public payable
-                            requireRegisteredAirline(msg.sender)
-                            requireEnoughFunding {
+    function fundAirline()
+                        public payable
+                        requireIsOperational
+                        requireRegisteredAirline(msg.sender)
+                        requirePaidEnough {
         flightSuretyData.fundAirline(msg.sender, true);
     }
-
-    function getContractBalance() public returns(uint256) {
-        return address(this).balance;
-    }
-
-    function getAirlineBalance(address airline) public returns(uint256) {
-        return address(airline).balance;
-    }
-
+//
    /**
     * @dev Register a future flight for insuring.
     *
     */
-    function registerFlight() external {
+    function registerFlight(string flightName) external
+                            requireIsOperational {
+        flightSuretyData.registerFlight(flightName, STATUS_CODE_ON_TIME);
+    }
 
+    function purchaseFlightInsurance(string flightName) external payable
+                            requireIsOperational
+                            requireMeetIncuranceFee {
+        flightSuretyData.purchaseFlightInsurance(flightName);
     }
 
    /**
@@ -213,7 +216,7 @@ contract FlightSuretyApp {
 
         emit OracleRequest(index, airline, flight, timestamp);
     }
-
+//
 
 // region ORACLE MANAGEMENT
 
