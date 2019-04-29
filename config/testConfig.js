@@ -12,7 +12,7 @@ var Config = async function(accounts) {
 
     let flightSuretyData = await FlightSuretyData.new(firstAirline);
     let flightSuretyApp = await FlightSuretyApp.new(flightSuretyData.address);
-    console.log('app address: %s', flightSuretyApp.address)
+
     await flightSuretyData.approveContractApp(flightSuretyApp.address);
 
     return {

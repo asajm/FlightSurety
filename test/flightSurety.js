@@ -198,16 +198,33 @@ contract('Flight Surety Tests', async (accounts) => {
         var flight = "SV123";
 
         assert.equal(await config.flightSuretyData.getMyMyInsuranceBalance.call({ from: passenger }), 0,
-            "the passenger's wallet has balance while its flight is not delayed"
+            "the passenger has no balance to be able to withdraw it"
         );
 
         try {
             await config.flightSuretyApp.callProcessFlightStatus(airline, flight, 20);
         }
         catch (e) {console.log(e)}
-
         assert.equal(await config.flightSuretyData.getMyMyInsuranceBalance.call({ from: passenger }), 1500000000000000000,
-            "the passenger's wallet has no balance while its flight is delayed"
+            "the passenger did not receive any fund due to delayed flight"
+        );
+        // await printAccountsStatus(config, accounts)
+    });
+
+    it('(passenger) can withdraw any funds owed to them as a result of receiving credit for insurance payout.', async () => {
+        let passenger = accounts[7];
+
+        assert.equal(await config.flightSuretyData.getMyMyInsuranceBalance.call({ from: passenger }) > 0, true,
+            "the passenger has no balance to be able to withdraw it"
+        );
+
+        try {
+            await config.flightSuretyApp.withdrawFunds({ from: passenger });
+        }
+        catch (e) {console.log(e)}
+
+        assert.equal(await config.flightSuretyData.getMyMyInsuranceBalance.call({ from: passenger }), 0,
+            "the passenger balance did not change after withrawing it"
         );
         // await printAccountsStatus(config, accounts)
     });

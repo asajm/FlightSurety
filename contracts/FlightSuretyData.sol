@@ -112,8 +112,15 @@ contract FlightSuretyData {
         _;
     }
 
-    modifier requireContractAppRequest() {
-        require(msg.sender != tx.origin, "this function can be only called by another contractor");
+    // Contract Account
+    modifier requireCA() {
+        require(msg.sender != tx.origin, "the function can be called by only contractor account");
+        _;
+    }
+
+    // Externally Owned Accounts
+    modifier requireEOA() {
+        require(msg.sender == tx.origin, "the function can be called by only externally owned account");
         _;
     }
 
@@ -229,7 +236,7 @@ contract FlightSuretyData {
 
     function registerContractApp() external
                             requireIsOperational
-                            requireContractAppRequest {
+                            requireCA {
         contractApps[msg.sender] = ContractApp(tx.origin, true, false);
     }
 
@@ -250,13 +257,14 @@ contract FlightSuretyData {
 
     /**
      *  @dev Credits payouts to insurees
-     *  percentage has to be between 1% and 200% =>
+     *  percentage like 1%, 150% .. etc
     */
     function creditInsurees(address airline, string flight, uint256 percentage) external
                             requireIsOperational
                             requireAuthorizedContractApp
                             requireAuthorizedAirline(airline)
                             requireRegisteredFlight(flight) {
+        require(percentage >= 1 && percentage <= 200, 'the (%) has to be between 1% and 200%');
         for (uint i = 0; i < flights[flight].passengers.length; i++) {
             address passenger = flights[flight].passengers[i];
             passengers[passenger].balance = passengers[passenger].flights[flight].mul(percentage).div(100);
@@ -268,7 +276,13 @@ contract FlightSuretyData {
      *  @dev Transfers eligible payout funds to insuree
      *
     */
-    function pay() external {
+    function withdrawFunds() external payable
+                            requireIsOperational
+                            requireAuthorizedContractApp {
+        require(passengers[tx.origin].balance > 0, 'it is imposible to withdraw funs, the balance is ZERO.');
+        uint256 balance = passengers[tx.origin].balance;
+        passengers[tx.origin].balance = passengers[tx.origin].balance.sub(balance);
+        tx.origin.transfer(balance);
     }
 
    /**

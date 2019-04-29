@@ -186,8 +186,7 @@ contract FlightSuretyApp {
     * @dev Register a future flight for insuring.
     *
     */
-    function registerFlight(string flight) external
-                            requireIsOperational {
+    function registerFlight(string flight) external requireIsOperational {
         flightSuretyData.registerFlight(flight, STATUS_CODE_ON_TIME);
     }
 
@@ -197,6 +196,10 @@ contract FlightSuretyApp {
         flightSuretyData.purchaseFlightInsurance.value(msg.value)(flight);
     }
 
+    function withdrawFunds() external payable requireIsOperational {
+        flightSuretyData.withdrawFunds();
+    }
+//
     function callProcessFlightStatus(address airline, string flight, uint8 statusCode) public {
         processFlightStatus(airline, flight, statusCode);
     }
@@ -206,9 +209,8 @@ contract FlightSuretyApp {
     *
     */
     function processFlightStatus(address airline, string memory flight, uint8 statusCode) internal {
-        if(statusCode == STATUS_CODE_LATE_AIRLINE){
-            flightSuretyData.creditInsurees(airline, flight, 150);
-        }
+        require(statusCode == STATUS_CODE_LATE_AIRLINE, 'the status of flight is not late by airline.');
+        flightSuretyData.creditInsurees(airline, flight, 150);
     }
 
 
