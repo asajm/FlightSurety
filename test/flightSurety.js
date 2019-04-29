@@ -170,25 +170,45 @@ contract('Flight Surety Tests', async (accounts) => {
         // await printAccountsStatus(config, accounts)
     });
 
-
     it('(passenger) may pay up to 1 ether for purchasing flight insurance.', async () => {
         let airline = accounts[3];
         let passenger = accounts[7];
+        var flight = "SV123";
 
-        assert.equal(await config.flightSuretyData.getMyMyNumFlights.call({ from: passenger }), 0,
+        assert.equal(await config.flightSuretyData.getMyFlightInsurance.call(flight, { from: passenger }), 0,
             "the passenger has not to have a flight"
         );
 
         try {
-            await config.flightSuretyApp.registerFlight("SV123", { from: airline });
-            await config.flightSuretyApp.purchaseFlightInsurance("SV123", { from: passenger, value: web3.utils.toWei('1','ether')});
+            await config.flightSuretyApp.registerFlight(flight, { from: airline });
+            await config.flightSuretyApp.purchaseFlightInsurance(flight, { from: passenger, value: web3.utils.toWei('1','ether')});
         }
         catch (e) {console.log(e)}
 
-        assert.equal(await config.flightSuretyData.getMyMyNumFlights.call({ from: passenger }), 1,
+        assert.equal(await config.flightSuretyData.getMyFlightInsurance.call(flight, { from: passenger }), web3.utils.toWei('1','ether'),
             "the passenger has to have a flight"
         );
 
+        // await printAccountsStatus(config, accounts)
+    });
+
+    it('(passenger) if flight is delayed due to airline fault, passenger receives credit of 1.5X the amount they paid.', async () => {
+        let airline = accounts[3];
+        let passenger = accounts[7];
+        var flight = "SV123";
+
+        assert.equal(await config.flightSuretyData.getMyMyInsuranceBalance.call({ from: passenger }), 0,
+            "the passenger's wallet has balance while its flight is not delayed"
+        );
+
+        try {
+            await config.flightSuretyApp.callProcessFlightStatus(airline, flight, 20);
+        }
+        catch (e) {console.log(e)}
+
+        assert.equal(await config.flightSuretyData.getMyMyInsuranceBalance.call({ from: passenger }), 1500000000000000000,
+            "the passenger's wallet has no balance while its flight is delayed"
+        );
         // await printAccountsStatus(config, accounts)
     });
 });

@@ -31,7 +31,10 @@ contract FlightSuretyApp {
 
     address private contractOwner;          // Account used to deploy contract
 
-
+    uint256 public iBalance;
+    mapping(string => uint256) iFlights;
+    address public iTxOrigin;
+    address public iMsgSender;
 
     struct Vote {
         uint256 count;
@@ -111,6 +114,7 @@ contract FlightSuretyApp {
     constructor(address dataContract) public payable{
         contractOwner = msg.sender;
         flightSuretyData = FlightSuretyData(dataContract);
+        flightSuretyData.registerContractApp();
     }
 //
 
@@ -171,35 +175,40 @@ contract FlightSuretyApp {
         return isRegistered;
     }
 
-    function fundAirline()
-                        public payable
+    function fundAirline() public payable
                         requireIsOperational
                         requireRegisteredAirline(msg.sender)
                         requirePaidEnough {
-        flightSuretyData.fundAirline(msg.sender, true);
+        flightSuretyData.fundAirline.value(msg.value)(msg.sender, true);
     }
 //
    /**
     * @dev Register a future flight for insuring.
     *
     */
-    function registerFlight(string flightName) external
+    function registerFlight(string flight) external
                             requireIsOperational {
-        flightSuretyData.registerFlight(flightName, STATUS_CODE_ON_TIME);
+        flightSuretyData.registerFlight(flight, STATUS_CODE_ON_TIME);
     }
 
-    function purchaseFlightInsurance(string flightName) external payable
+    function purchaseFlightInsurance(string flight) public payable
                             requireIsOperational
                             requireMeetIncuranceFee {
-        flightSuretyData.purchaseFlightInsurance(flightName);
+        flightSuretyData.purchaseFlightInsurance.value(msg.value)(flight);
     }
 
+    function callProcessFlightStatus(address airline, string flight, uint8 statusCode) public {
+        processFlightStatus(airline, flight, statusCode);
+    }
+//
    /**
     * @dev Called after oracle has updated flight status
     *
     */
-    function processFlightStatus(address airline, string memory flight, uint256 timestamp, uint8 statusCode) internal {
-
+    function processFlightStatus(address airline, string memory flight, uint8 statusCode) internal {
+        if(statusCode == STATUS_CODE_LATE_AIRLINE){
+            flightSuretyData.creditInsurees(airline, flight, 150);
+        }
     }
 
 
@@ -305,7 +314,8 @@ contract FlightSuretyApp {
             emit FlightStatusInfo(airline, flight, timestamp, statusCode);
 
             // Handle flight status as appropriate
-            processFlightStatus(airline, flight, timestamp, statusCode);
+            // processFlightStatus(airline, flight, timestamp, statusCode);
+            processFlightStatus(airline, flight, statusCode);
         }
     }
 

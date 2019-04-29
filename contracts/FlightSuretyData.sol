@@ -17,9 +17,8 @@ contract FlightSuretyData {
     }
 
     struct Passenger {
-        uint256 balance;
-        uint256 numFlights;
-        mapping(string => bool) flights;
+        uint256 balance;                                                // withdaow funds
+        mapping(string => uint256) flights;                             // paid insurance per flight
     }
 
     struct Flight {
@@ -29,12 +28,26 @@ contract FlightSuretyData {
         address[] passengers;
     }
 
+    struct ContractApp {
+        address requester;
+        bool isRegistered;
+        bool isAuthorized;
+    }
+
+    address public iTxOriginRegister;
+    address public iMsgSenderRegister;
+    address public iTxOriginAprover;
+    address public iMsgSenderAprover;
+    bool public iContractAppIsRegistered;
+    bool public iContractAppIsAuthorized;
+
 
     address private contractOwner;                                      // Account used to deploy contract
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
     mapping(address => Airline) private airlines;
     mapping(address => Passenger) private passengers;
     mapping(string => Flight) private flights;
+    mapping(address => ContractApp) private contractApps;
 
     uint256 public countAirlines = 0;
     uint256 public countRegisteredAirlines = 0;
@@ -48,7 +61,7 @@ contract FlightSuretyData {
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor(address airline) public payable{
+    constructor(address airline) public payable {
         contractOwner = msg.sender;
         _addAirline(airline, true);
     }
@@ -94,15 +107,25 @@ contract FlightSuretyData {
         _;
     }
 
-    modifier requireRegisteredFlight(string flightName) {
-        require(flights[flightName].isRegistered == true, "the flight is not registered yet!");
+    modifier requireRegisteredFlight(string flight) {
+        require(flights[flight].isRegistered == true, "the flight is not registered yet!");
         _;
     }
 
-    // modifier requirePassengerHasFlight(address passenger, string flightName) {
+    modifier requireContractAppRequest() {
+        require(msg.sender != tx.origin, "this function can be only called by another contractor");
+        _;
+    }
+
+    modifier requireAuthorizedContractApp() {
+        require(contractApps[msg.sender].isAuthorized, "the contractApp is not authorized!");
+        _;
+    }
+
+    // modifier requirePassengerHasFlight(address passenger, string flight) {
     //     bool success = false;
     //     for (uint i = 0; i < passengers[passenger].flights.length; i++) {
-    //         if (passengers[passenger].flights[i] == flightName) {
+    //         if (passengers[passenger].flights[i] == flight) {
     //             success = true;
     //             break;
     //         }
@@ -154,24 +177,15 @@ contract FlightSuretyData {
     function getAirlinesCounts() public view returns(uint256) {
         return countAirlines;
     }
-//
 
-    function getMyFlightStatus(string flightName) public returns(uint8) {
-        if (passengers[tx.origin].flights[flightName] == true) {
-            return flights[flightName].statusCode;
-        } else {
-            return 0;
-        }
+    function getMyFlightInsurance(string flight) public returns(uint256) {
+        return passengers[tx.origin].flights[flight];
     }
 
     function getMyMyInsuranceBalance() public returns(uint256) {
         return passengers[tx.origin].balance;
     }
-
-    function getMyMyNumFlights() public returns(uint256) {
-        return passengers[tx.origin].numFlights;
-    }
-
+//
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
@@ -200,19 +214,30 @@ contract FlightSuretyData {
         airlines[airline].isFunded = isFunded;
     }
 //
-    function registerFlight(string flightName, uint8 statusCode) external
+    function registerFlight(string flight, uint8 statusCode) external
                             requireIsOperational
                             requireAuthorizedAirline(tx.origin) {
-        flights[flightName] = Flight(true, statusCode, tx.origin, new address[](0));
+        flights[flight] = Flight(true, statusCode, tx.origin, new address[](0));
     }
 
-    function purchaseFlightInsurance(string flightName) external payable
+    function purchaseFlightInsurance(string flight) public payable
                             requireIsOperational
-                            requireRegisteredFlight(flightName) {
-        passengers[tx.origin].balance = passengers[tx.origin].balance.add(msg.value);
-        passengers[tx.origin].numFlights = passengers[tx.origin].numFlights.add(1);
-        passengers[tx.origin].flights[flightName] = true;
-        flights[flightName].passengers.push(tx.origin);
+                            requireRegisteredFlight(flight) {
+        passengers[tx.origin].flights[flight] = msg.value;
+        flights[flight].passengers.push(tx.origin);
+    }
+
+    function registerContractApp() external
+                            requireIsOperational
+                            requireContractAppRequest {
+        contractApps[msg.sender] = ContractApp(tx.origin, true, false);
+    }
+
+    function approveContractApp(address contractApp) external
+                            requireIsOperational
+                            requireContractOwner
+                             {
+        contractApps[contractApp].isAuthorized = true;
     }
 //
    /**
@@ -225,8 +250,17 @@ contract FlightSuretyData {
 
     /**
      *  @dev Credits payouts to insurees
+     *  percentage has to be between 1% and 200% =>
     */
-    function creditInsurees() external {
+    function creditInsurees(address airline, string flight, uint256 percentage) external
+                            requireIsOperational
+                            requireAuthorizedContractApp
+                            requireAuthorizedAirline(airline)
+                            requireRegisteredFlight(flight) {
+        for (uint i = 0; i < flights[flight].passengers.length; i++) {
+            address passenger = flights[flight].passengers[i];
+            passengers[passenger].balance = passengers[passenger].flights[flight].mul(percentage).div(100);
+        }
     }
 
 
