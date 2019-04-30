@@ -13,18 +13,11 @@ let flightSuretyApp = new web3.eth.Contract(FlightSuretyApp.abi, config.appAddre
 
 // const Test = require('../config/testConfig.js');
 
-const STATUS_CODE_UNKNOWN = 0;
-const STATUS_CODE_ON_TIME = 10;
-const STATUS_CODE_LATE_AIRLINE = 20;
-const STATUS_CODE_LATE_WEATHER = 30;
-const STATUS_CODE_LATE_TECHNICAL = 40;
-const STATUS_CODE_LATE_OTHER = 50;
-
 flightSuretyApp.events.FlightStatusInfo({
     fromBlock: 0
 }, function (error, event) {
     if (error) console.log(error)
-    console.log('###\tFlightStatusInfo\t###')
+    console.log('### FlightStatusInfo ###')
     // console.log(event)
 });
 
@@ -32,7 +25,7 @@ flightSuretyApp.events.OracleReport({
     fromBlock: 0
 }, function (error, event) {
     if (error) console.log(error)
-    console.log('###\tOracleReport\t###')
+    console.log('### OracleReport ###')
     // console.log(event)
 });
 
@@ -40,8 +33,15 @@ flightSuretyApp.events.OracleRequest({
     fromBlock: 0
 }, function (error, event) {
     if (error) console.log(error)
-    console.log('###\tOracleRequest\t###')
-    // console.log(event)
+    console.log('### OracleRequest ###')
+    let requestDetails = {
+        index: event.returnValues.index,
+        airline: event.returnValues.airline,
+        flight: event.returnValues.flight,
+        timestamp: event.returnValues.timestamp,
+        statusCode: Math.floor(Math.random() * 5) * 10
+    }
+    console.log(requestDetails);
 });
 
 
@@ -50,9 +50,12 @@ flightSuretyApp.events.OracleRequest({
         let accounts = await web3.eth.getAccounts()
         let oracles = [];
         let fee = await flightSuretyApp.methods.REGISTRATION_FEE().call({ from: accounts[0] })
-        await flightSuretyData.methods.approveContractApp(config.appAddress).call({from: accounts[0]})
+        await flightSuretyData.methods.approveContractApp(config.appAddress).call({ from: accounts[0] })
 
-        accounts.forEach( async(account) => {
+        if(accounts.length < 30) throw 'there have to be 30 accounts = 20 (oracles) + 10 (airlines)'
+        let oracleAccounts = accounts.slice(10, accounts.length)
+
+        await Promise.all(oracleAccounts.map(async (account) => {
             await flightSuretyApp.methods.registerOracle().send({ from: account, value: fee, gas: 9999999 })
             let indexes = await flightSuretyApp.methods.getMyIndexes().call({ from: account })
             let oracle = {
@@ -60,8 +63,8 @@ flightSuretyApp.events.OracleRequest({
                 indexes: indexes
             }
             oracles.push(oracle)
-            console.log(oracle)
-        })
+            console.log(oracle.indexes)
+        }))
     } catch (error) {
         console.log(error)
     }
@@ -70,7 +73,6 @@ flightSuretyApp.events.OracleRequest({
 
 const app = express();
 app.get('/api', (req, res) => {
-
     res.send({
         message: 'An API for use with your Dapp!'
     })
