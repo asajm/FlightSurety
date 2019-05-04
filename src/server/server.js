@@ -29,17 +29,6 @@ let setOracles = async () => {
     oracleAccounts.map(async (account) => {
         try {
             await flightSuretyApp.methods.registerOracle().send({ from: account, value: fee, gas: 99999999 })
-            // flightSuretyApp.methods.registerOracle().send({ from: account, value: fee, gas: 99999999 })
-            //     .on('transactionHash', (hash) => {
-            //         console.log('transactionHash')
-            //     })
-            //     .on('confirmation', (confirmationNumber, receipt) => {
-            //         console.log('confirmation')
-            //     })
-            //     .on('receipt', (receipt) => {
-            //         console.log('receipt')
-            //     })
-            //     .on('error', console.error)
             let indexes = await flightSuretyApp.methods.getMyIndexes().call({ from: account })
             let oracle = {
                 address: account,
@@ -57,9 +46,7 @@ let setOracles = async () => {
 
 let setEvents = async () => {
     console.log('## setEvents: START')
-    flightSuretyApp.events.FlightStatusInfo({
-        fromBlock: 0
-    }, function (error, event) {
+    flightSuretyApp.events.FlightStatusInfo({ fromBlock: 0 }, function (error, event) {
         if (error) console.log(error)
         console.log('### Flight Status Info ###')
         // console.log(event)
@@ -73,9 +60,7 @@ let setEvents = async () => {
         console.log(res)
     });
 
-    flightSuretyApp.events.OracleReport({
-        fromBlock: 0
-    }, function (error, event) {
+    flightSuretyApp.events.OracleReport({ fromBlock: 0 }, function (error, event) {
         if (error) console.log(error)
         console.log('\n### Oracle (Report) ###')
         let res = {
@@ -88,9 +73,7 @@ let setEvents = async () => {
         console.log(res)
     });
 
-    flightSuretyApp.events.OracleRequest({
-        fromBlock: 0
-    }, function (error, event) {
+    flightSuretyApp.events.OracleRequest({ fromBlock: 0 }, function (error, event) {
         if (error) console.log(error)
         console.log('\n### Oracle Request ###')
         let req = {
@@ -114,6 +97,90 @@ let setEvents = async () => {
             }
         })
     });
+
+
+
+    flightSuretyData.events.airlineRegistered({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### Airline Registered ###')
+        let res = {
+            doer: event.returnValues.doer,
+            airline: event.returnValues.airline
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+    flightSuretyData.events.airlineFunded({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### Airline Funded ###')
+        let res = {
+            airline: event.returnValues.airline,
+            amount: event.returnValues.amount
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+    flightSuretyData.events.flightRegistered({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### Flight Registered ###')
+        let res = {
+            airline: event.returnValues.airline,
+            flight: event.returnValues.flight,
+            status: event.returnValues.status
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+    flightSuretyApp.events.flightRegisteringFromApp({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### Flight Registering from APP ###')
+        let res = {
+            airline: event.returnValues.airline,
+            flight: event.returnValues.flight,
+            status: event.returnValues.status
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+    flightSuretyApp.events.valuesFlightInsuranceSubmitted({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### values Flight Insurance Submitted from APP ###')
+        let res = {
+            send: event.returnValues.sendValue,
+            required: event.returnValues.requiredValue
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+    flightSuretyData.events.flightRegisteringFromData({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### Flight Registering from DATA ###')
+        let res = {
+            airline: event.returnValues.airline,
+            flight: event.returnValues.flight,
+            status: event.returnValues.status
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+    flightSuretyData.events.flightInsurancePurchased({ fromBlock: 0 }, function (error, event) {
+        if (error) console.log(error)
+        console.log('\n### flight Insurance Purchased ###')
+        let res = {
+            passenger: event.returnValues.passenger,
+            flight: event.returnValues.flight
+        }
+        console.log('-- details --')
+        console.log(res)
+    });
+
+
     console.log('## setOracles: END')
 }
 

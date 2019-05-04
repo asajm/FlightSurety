@@ -97,7 +97,8 @@ contract FlightSuretyApp {
         _;
     }
 
-    modifier requireMeetIncuranceFee() {
+    modifier requireMeetInsuranceFee() {
+        emit valuesFlightInsuranceSubmitted(msg.value, FEE_PASSENGER_INCURANCE);
         require(msg.value <= FEE_PASSENGER_INCURANCE, "The funding exceeds the limit (up to 1 ether)!");
         _;
     }
@@ -107,6 +108,13 @@ contract FlightSuretyApp {
     /*                                       CONSTRUCTOR                                        */
     /********************************************************************************************/
 //
+
+    event airlineRegisteringFromApp(address doer, address airline);
+    event airlineFundingFromApp(address airline, uint256 amount);
+    event flightRegisteringFromApp(address airline, string flight, uint8 status);
+    event flightInsurancePurchaseingFromApp(address passenger, string flight);
+    event valuesFlightInsuranceSubmitted(uint256 sendValue, uint256 requiredValue);
+
     /**
     * @dev Contract constructor
     *
@@ -149,6 +157,10 @@ contract FlightSuretyApp {
     /********************************************************************************************/
 //
 
+    function owner() external view returns(address) {
+        return contractOwner;
+    }
+
    /**
     * @dev Add an airline to the registration queue
     *
@@ -161,6 +173,8 @@ contract FlightSuretyApp {
                             requireOneRegistrationAction(airline)
                             requireFundedAirline(msg.sender)
                             returns(bool) {
+        emit airlineRegisteringFromApp(tx.origin, airline);
+
         uint256 count = flightSuretyData.getAirlinesCounts();
         bool isRegistered = false;
         if (count < LIMIT_DIRECT_AIRLINE_REGISTRATION) { isRegistered = true; }
@@ -175,10 +189,12 @@ contract FlightSuretyApp {
         return isRegistered;
     }
 
-    function fundAirline() public payable
+    function fundAirline() external payable
                         requireIsOperational
                         requireRegisteredAirline(msg.sender)
                         requirePaidEnough {
+        emit airlineFundingFromApp(tx.origin, msg.value);
+
         flightSuretyData.fundAirline.value(msg.value)(msg.sender, true);
     }
 //
@@ -187,12 +203,15 @@ contract FlightSuretyApp {
     *
     */
     function registerFlight(string flight) external requireIsOperational {
+        emit flightRegisteringFromApp(tx.origin, flight, STATUS_CODE_ON_TIME);
+
         flightSuretyData.registerFlight(flight, STATUS_CODE_ON_TIME);
     }
 
-    function purchaseFlightInsurance(string flight) public payable
+    function purchaseFlightInsurance(string flight) external payable
                             requireIsOperational
-                            requireMeetIncuranceFee {
+                            requireMeetInsuranceFee {
+        emit flightInsurancePurchaseingFromApp(tx.origin, flight);
         flightSuretyData.purchaseFlightInsurance.value(msg.value)(flight);
     }
 

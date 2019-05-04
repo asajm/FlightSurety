@@ -43,6 +43,7 @@ contract FlightSuretyData {
 
 
     address private contractOwner;                                      // Account used to deploy contract
+    address private firstAirline;
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
     mapping(address => Airline) private airlines;
     mapping(address => Passenger) private passengers;
@@ -56,6 +57,15 @@ contract FlightSuretyData {
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
 //
+    event airlineRegisteringFromData(address doer, address airline);
+    event airlineFundingFromData(address airline, uint256 amount);
+    event flightRegisteringFromData(address airline, string flight, uint8 status);
+    event flightInsurancePurchaseingFromData(address passenger, string flight);
+
+    event airlineRegistered(address doer, address airline);
+    event airlineFunded(address airline, uint256 amount);
+    event flightRegistered(address airline, string flight, uint8 status);
+    event flightInsurancePurchased(address passenger, string flight);
 
     /**
     * @dev Constructor
@@ -63,6 +73,7 @@ contract FlightSuretyData {
     */
     constructor(address airline) public payable {
         contractOwner = msg.sender;
+        firstAirline = airline;
         _addAirline(airline, true);
     }
 //
@@ -210,28 +221,46 @@ contract FlightSuretyData {
     }
 
     function _addAirline(address airline, bool isRegistered) private {
+        emit airlineRegisteringFromData(tx.origin, airline);
+
         if (airlines[airline].isRegistered == false && isRegistered == true) { countRegisteredAirlines = countRegisteredAirlines.add(1); }
         if (airlines[airline].isExisted == false) { countAirlines = countAirlines.add(1); }
         airlines[airline] = Airline(true, isRegistered, false, 0);
+
+        emit airlineRegistered(tx.origin, airline);
     }
 
-    function fundAirline(address airline, bool isFunded) public payable
+    function fundAirline(address airline, bool isFunded) external payable
                             requireRegisteredAirline(airline) {
+
+        emit airlineFundingFromData(airline, msg.value);
+
         airlines[airline].balance = airlines[airline].balance.add(msg.value);
         airlines[airline].isFunded = isFunded;
+
+        emit airlineFunded(airline, msg.value);
     }
 //
+
     function registerFlight(string flight, uint8 statusCode) external
                             requireIsOperational
                             requireAuthorizedAirline(tx.origin) {
+        emit flightRegisteringFromData(tx.origin, flight, statusCode);
+
         flights[flight] = Flight(true, statusCode, tx.origin, new address[](0));
+
+        emit flightRegistered(tx.origin, flight, statusCode);
     }
 
-    function purchaseFlightInsurance(string flight) public payable
+    function purchaseFlightInsurance(string flight) external payable
                             requireIsOperational
                             requireRegisteredFlight(flight) {
+        emit flightInsurancePurchaseingFromData(tx.origin, flight);
+
         passengers[tx.origin].flights[flight] = msg.value;
         flights[flight].passengers.push(tx.origin);
+
+        emit flightInsurancePurchased(tx.origin, flight);
     }
 
     function registerContractApp() external
